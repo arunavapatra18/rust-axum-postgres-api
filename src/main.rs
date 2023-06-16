@@ -1,16 +1,25 @@
-use axum::{
-    response::IntoResponse,
-    routing::get,
-    Json,
-    Router
+mod handler;
+mod model;
+mod route;
+mod schema;
+
+use axum::http::{
+    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    HeaderValue,
+    Method
 };
+
 use std::sync::Arc;
 use dotenv::dotenv;
+
 use sqlx::{
     postgres::PgPoolOptions,
     Pool,
     Postgres
 };
+
+use route::create_router;
+use tower_http::cors::{CorsLayer};
 
 // Struct containing DB Pool
 pub struct AppState {
@@ -39,28 +48,19 @@ async fn main() {
         }
     };
 
-    let app_state = Arc::new(AppState {     // Allows multiple parts of the application 
-        db: pool.clone()                                   // shared ownership of the application state
-    });
-    let app = Router::new()
-        .route("/api/healthchecker", get(health_checker_handler))
-        .with_state(app_state);
+    // CORS Middleware
+    let cors = CorsLayer::new()
+    .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+    .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+    .allow_credentials(true)
+    .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
+
+    // Create the Router and add the CORS layer
+    let app = create_router(Arc::new(AppState { db: pool.clone() })).layer(cors);
 
     println!("🚀 Server started successfully at 127.0.0.1:8000");
     axum::Server::bind(&"127.0.0.1:8000".parse().unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
-}
-
-// Handler for basic endpoint: /api/healthchecker
-async fn health_checker_handler() -> impl IntoResponse {
-    const MESSAGE: &str = "Simple CRUD API with Rust, SQLx, Postgres and Axum";
-
-    let json_response = serde_json::json!({
-        "status": "success",
-        "message": MESSAGE
-    });
-
-    Json(json_response)
 }

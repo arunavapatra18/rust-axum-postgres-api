@@ -71,7 +71,7 @@ pub async fn note_list_handler(
         "results": notes.len(),
         "notes": notes
     });
-    ok(Json(json_response))
+    Ok(Json(json_response))
 }
 
 /**
@@ -170,7 +170,7 @@ pub async fn get_note_handler(
                     "note": note
                 })
             });
-            return ok(Json(note_response));
+            return Ok(Json(note_response));
         }
         // Error Response
         Err(_) => {
@@ -205,7 +205,7 @@ pub async fn edit_note_handler(
         NoteModel,
         "SELECT * FROM notes WHERE id = $1", id
     )
-    .fetch_all(&data.db)
+    .fetch_one(&data.db)
     .await;
 
     // If not, raise error response
@@ -291,4 +291,16 @@ pub async fn delete_note_handler(
         return Err((StatusCode::NOT_FOUND, Json(error_response)));
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+// Handler for basic endpoint: /api/healthchecker
+pub async fn health_checker_handler() -> impl IntoResponse {
+    const MESSAGE: &str = "Simple CRUD API with Rust, SQLx, Postgres and Axum";
+
+    let json_response = serde_json::json!({
+        "status": "success",
+        "message": MESSAGE
+    });
+
+    Json(json_response)
 }
